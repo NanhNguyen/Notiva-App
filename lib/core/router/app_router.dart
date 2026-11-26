@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/models/piece.dart';
 import '../../features/dev/dev_gallery_screen.dart';
+import '../../features/repertoire/screens/piece_form_screen.dart';
+import '../../features/repertoire/screens/repertoire_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/shell/placeholder_route_screen.dart';
 import '../../features/shell/placeholder_tab_screen.dart';
@@ -51,11 +54,7 @@ final GoRouter appRouter = GoRouter(
           routes: [
             GoRoute(
               path: AppRoutes.repertoire,
-              builder: (context, state) => const PlaceholderTabScreen(
-                title: AppStrings.repertoireTitle,
-                emptyTitle: AppStrings.repertoireEmptyTitle,
-                emptySubtitle: AppStrings.repertoireEmptySubtitle,
-              ),
+              builder: (context, state) => const RepertoireScreen(),
             ),
           ],
         ),
@@ -90,8 +89,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: AppRoutes.pieceForm,
-      builder: (context, state) => const PlaceholderRouteScreen(
-        title: AppStrings.pieceFormTitle,
+      builder: (context, state) => PieceFormScreen(
+        piece: state.extra as Piece?,
       ),
     ),
     GoRoute(

@@ -1,7 +1,12 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
+import '../../domain/enums/hand_status.dart';
 import '../../domain/enums/piece_status.dart';
 import '../../domain/models/piece.dart';
+import '../../domain/models/piece_with_sections.dart';
+import '../../domain/models/section.dart';
 import '../database/app_database.dart' as db;
 import '../helpers/clock.dart';
 import '../helpers/id_generator.dart';
@@ -24,6 +29,8 @@ abstract interface class PieceRepository {
   Future<List<Piece>> getAll();
 
   Stream<List<Piece>> watchAll();
+
+  Stream<List<PieceWithSections>> watchAllWithSections();
 }
 
 /// Drift-backed implementation of [PieceRepository].
@@ -173,6 +180,74 @@ class DriftPieceRepository implements PieceRepository {
         .map((rows) => rows.map(_mapRow).toList());
   }
 
+  @override
+  Stream<List<PieceWithSections>> watchAllWithSections() {
+    final query = _db.select(_db.pieces).join([
+      leftOuterJoin(
+        _db.sections,
+        _db.sections.pieceId.equalsExp(_db.pieces.id) &
+            _db.sections.deletedAt.isNull(),
+      ),
+    ])
+      ..where(_db.pieces.deletedAt.isNull())
+      ..orderBy([
+        OrderingTerm.desc(_db.pieces.updatedAt),
+        OrderingTerm.asc(_db.sections.orderIndex),
+      ]);
+
+    return query.watch().map((rows) {
+      final grouped = <String, _PieceGroup>{};
+      for (final row in rows) {
+        final pieceRow = row.readTable(_db.pieces);
+        final sectionRow = row.readTableOrNull(_db.sections);
+        final group = grouped.putIfAbsent(
+          pieceRow.id,
+          () => _PieceGroup(_mapRow(pieceRow)),
+        );
+        if (sectionRow != null) {
+          group.sections.add(_mapSectionRow(sectionRow));
+        }
+      }
+      return grouped.values
+          .map((g) => PieceWithSections(piece: g.piece, sections: g.sections))
+          .toList();
+    });
+  }
+
+  Section _mapSectionRow(db.Section row) {
+    return Section(
+      id: row.id,
+      userId: row.userId,
+      pieceId: row.pieceId,
+      name: row.name,
+      orderIndex: row.orderIndex,
+      pageRef: row.pageRef,
+      measureStart: row.measureStart,
+      measureEnd: row.measureEnd,
+      difficultyTags: _decodeStringList(row.difficultyTags),
+      note: row.note,
+      links: _decodeStringList(row.links),
+      rhStatus: HandStatus.fromValue(row.rhStatus),
+      lhStatus: HandStatus.fromValue(row.lhStatus),
+      htStatus: HandStatus.fromValue(row.htStatus),
+      nextAction: row.nextAction,
+      lastPracticedAt: row.lastPracticedAt?.toUtc(),
+      createdAt: row.createdAt.toUtc(),
+      updatedAt: row.updatedAt.toUtc(),
+      deletedAt: row.deletedAt?.toUtc(),
+    );
+  }
+
+  List<String> _decodeStringList(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.whereType<String>().toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
   Piece _mapRow(db.Piece row) {
     return Piece(
       id: row.id,
@@ -188,5 +263,12 @@ class DriftPieceRepository implements PieceRepository {
       deletedAt: row.deletedAt?.toUtc(),
     );
   }
+}
+
+class _PieceGroup {
+  _PieceGroup(this.piece);
+
+  final Piece piece;
+  final List<Section> sections = [];
 }
 

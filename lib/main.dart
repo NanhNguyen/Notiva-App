@@ -12,6 +12,7 @@ import 'data/repositories/piece_repository.dart';
 import 'data/repositories/plan_repository.dart';
 import 'data/repositories/section_repository.dart';
 import 'data/repositories/session_repository.dart';
+import 'features/repertoire/cubit/pieces_cubit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,11 +81,14 @@ class NotivaApp extends StatelessWidget {
           ),
         ),
       ],
-      child: MaterialApp.router(
-        title: AppStrings.appName,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        routerConfig: appRouter,
+      child: BlocProvider<PiecesCubit>(
+        create: (context) => PiecesCubit(context.read<PieceRepository>()),
+        child: MaterialApp.router(
+          title: AppStrings.appName,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          routerConfig: appRouter,
+        ),
       ),
     );
   }

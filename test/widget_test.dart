@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notiva/core/strings/app_strings.dart';
 import 'package:notiva/data/database/app_database.dart';
@@ -32,5 +33,9 @@ void main() {
     await tester.tap(find.text(AppStrings.navProgress));
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.progressEmptyTitle), findsOneWidget);
+
+    // Unmount widget tree and flush Drift's zero-duration stream cleanup timer.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
   });
 }

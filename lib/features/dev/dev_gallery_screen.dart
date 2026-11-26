@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../data/repositories/piece_repository.dart';
+import '../../data/repositories/section_repository.dart';
 import '../../domain/enums/hand_status.dart';
+import '../../domain/enums/piece_status.dart';
 import '../../domain/enums/practice_outcome.dart';
 import '../../ui/widgets/widgets.dart';
 
@@ -49,6 +53,13 @@ class _DevGalleryScreenState extends State<DevGalleryScreen> {
             vertical: AppSpacing.lg,
           ),
           children: [
+            _sectionTitle('0. Debug Data'),
+            TonalButton(
+              label: 'Seed sample data',
+              expand: true,
+              onPressed: _seedSampleData,
+            ),
+            const SizedBox(height: AppSpacing.xl),
             _sectionTitle('1. PieceKeysBar (28dp & compact 20dp)'),
             PieceKeysBar(
               statuses: _pieceStatuses,
@@ -261,6 +272,60 @@ class _DevGalleryScreenState extends State<DevGalleryScreen> {
       counts[s.value]++;
     }
     return '${list.length} đoạn: ${counts[3]} thuần thục, ${counts[2]} khá ổn, ${counts[1]} đang tập, ${counts[0]} chưa tập';
+  }
+
+  Future<void> _seedSampleData() async {
+    final pieceRepo = context.read<PieceRepository>();
+    final sectionRepo = context.read<SectionRepository>();
+    final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
+
+    final clair = await pieceRepo.create(
+      title: 'Clair de Lune',
+      composer: 'Claude Debussy',
+      status: PieceStatus.learning,
+    );
+
+    final clairSections = <(String, HandStatus, HandStatus, HandStatus, DateTime?)>[
+      ('Mở đầu', HandStatus.mastered, HandStatus.mastered, HandStatus.mastered, yesterday),
+      ('Giai điệu chính', HandStatus.solid, HandStatus.learning, HandStatus.learning, yesterday),
+      ('Ô nhịp 15 đến 26', HandStatus.solid, HandStatus.solid, HandStatus.solid, null),
+      ('Đoạn arpeggio', HandStatus.learning, HandStatus.notStarted, HandStatus.learning, null),
+      ('Cao trào', HandStatus.notStarted, HandStatus.notStarted, HandStatus.notStarted, null),
+      ('Kết', HandStatus.notStarted, HandStatus.notStarted, HandStatus.notStarted, null),
+    ];
+
+    for (var i = 0; i < clairSections.length; i++) {
+      final (name, rh, lh, ht, practicedAt) = clairSections[i];
+      await sectionRepo.create(
+        pieceId: clair.id,
+        name: name,
+        orderIndex: i,
+        rhStatus: rh,
+        lhStatus: lh,
+        htStatus: ht,
+        lastPracticedAt: practicedAt,
+      );
+    }
+
+    await pieceRepo.create(
+      title: 'Nocturne Op. 9 No. 2',
+      composer: 'Frédéric Chopin',
+      status: PieceStatus.learning,
+    );
+    await pieceRepo.create(
+      title: 'Für Elise',
+      composer: 'Ludwig van Beethoven',
+      status: PieceStatus.maintaining,
+    );
+    await pieceRepo.create(
+      title: 'Gymnopédie No. 1',
+      composer: 'Erik Satie',
+      status: PieceStatus.planned,
+    );
+
+    if (mounted) {
+      showAppToast(context, message: 'Đã thêm 4 bản nhạc mẫu.');
+    }
   }
 }
 
