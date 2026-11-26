@@ -13,6 +13,7 @@ import 'data/repositories/plan_repository.dart';
 import 'data/repositories/section_repository.dart';
 import 'data/repositories/session_repository.dart';
 import 'features/home/cubit/plan_cubit.dart';
+import 'features/practice/cubit/session_cubit.dart';
 import 'features/repertoire/cubit/pieces_cubit.dart';
 import 'features/sections/cubit/sections_cubit.dart';
 
@@ -100,6 +101,15 @@ class NotivaApp extends StatelessWidget {
               pieceRepository: context.read<PieceRepository>(),
               sectionRepository: context.read<SectionRepository>(),
               planRepository: context.read<PlanRepository>(),
+            ),
+          ),
+          BlocProvider<SessionCubit>(
+            create: (context) => SessionCubit(
+              sessionRepository: context.read<SessionRepository>(),
+              planRepository: context.read<PlanRepository>(),
+              sectionRepository: context.read<SectionRepository>(),
+              pieceRepository: context.read<PieceRepository>(),
+              clock: clock,
             ),
           ),
         ],

@@ -100,8 +100,10 @@ class HomeScreen extends StatelessWidget {
                               nextAction:
                                   state.smartResume!.latestEntry.nextAction ??
                                       state.smartResume!.section.nextAction,
-                              onContinue: () =>
-                                  context.push(AppRoutes.practiceSession),
+                              onContinue: () => context.push(
+                                AppRoutes.practiceSession,
+                                extra: state.smartResume!.section.id,
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.xl),
                           ],

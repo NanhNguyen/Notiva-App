@@ -6,13 +6,15 @@ import '../../domain/models/piece.dart';
 import '../../features/dev/dev_gallery_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/home/screens/plan_screen.dart';
+import '../../features/practice/cubit/session_state.dart';
+import '../../features/practice/screens/log_result_screen.dart';
+import '../../features/practice/screens/practice_screen.dart';
 import '../../features/repertoire/screens/piece_form_screen.dart';
 import '../../features/repertoire/screens/repertoire_screen.dart';
 import '../../features/sections/screens/piece_detail_screen.dart';
 import '../../features/sections/screens/section_detail_screen.dart';
 import '../../features/sections/screens/section_form_screen.dart';
 import '../../features/shell/app_shell.dart';
-import '../../features/shell/placeholder_route_screen.dart';
 import '../../features/shell/placeholder_tab_screen.dart';
 import '../strings/app_strings.dart';
 
@@ -78,15 +80,15 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: AppRoutes.practiceSession,
-      builder: (context, state) => const PlaceholderRouteScreen(
-        title: AppStrings.practiceSessionTitle,
+      builder: (context, state) => PracticeScreen(
+        initialSectionId: state.extra as String?,
       ),
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: AppRoutes.practiceLog,
-      builder: (context, state) => const PlaceholderRouteScreen(
-        title: AppStrings.practiceLogTitle,
+      builder: (context, state) => LogResultScreen(
+        item: state.extra as PracticeQueueItem,
       ),
     ),
     GoRoute(

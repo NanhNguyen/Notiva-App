@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../domain/enums/hand_status.dart';
 import '../../domain/enums/piece_status.dart';
+import '../../domain/enums/plan_item_state.dart';
 import '../../domain/enums/practice_outcome.dart';
 import '../../domain/models/entry.dart';
 import '../../domain/models/piece.dart';
@@ -14,6 +15,27 @@ import '../database/app_database.dart' as db;
 import '../helpers/clock.dart';
 import '../helpers/id_generator.dart';
 
+/// Smart defaults computed for logging a section (A4).
+class LogEntryDefaults {
+  const LogEntryDefaults({
+    required this.hands,
+    this.lastTempo,
+    required this.outcome,
+    required this.rh,
+    required this.lh,
+    required this.ht,
+    this.nextAction,
+  });
+
+  final List<String> hands;
+  final int? lastTempo;
+  final PracticeOutcome outcome;
+  final HandStatus rh;
+  final HandStatus lh;
+  final HandStatus ht;
+  final String? nextAction;
+}
+
 /// Repository interface for practice sessions and entries.
 abstract interface class SessionRepository {
   Future<List<Session>> getRecent({int limit = 20});
@@ -22,7 +44,32 @@ abstract interface class SessionRepository {
 
   Stream<SmartResumeData?> watchSmartResume();
 
-  /// Creates a session + entry and updates the section in one transaction.
+  Future<Session> startSession();
+
+  Future<void> endSession({
+    required String sessionId,
+    required int durationMinutes,
+    String? note,
+  });
+
+  Future<LogEntryDefaults> getDefaultsForSection(Section section);
+
+  /// Saves an entry, updates the section, and marks any linked plan item done
+  /// in a single database transaction.
+  Future<Entry> saveEntry({
+    required String sessionId,
+    required Section section,
+    String? planItemId,
+    required List<String> hands,
+    int? tempo,
+    required PracticeOutcome outcome,
+    String? note,
+    String? nextAction,
+    required HandStatus rhAfter,
+    required HandStatus lhAfter,
+    required HandStatus htAfter,
+  });
+
   Future<void> recordQuickEntry({
     required Section section,
     int? tempo,
@@ -48,11 +95,12 @@ class DriftSessionRepository implements SessionRepository {
 
   @override
   Future<List<Session>> getRecent({int limit = 20}) async {
-    await (_db.select(_db.sessions)
+    final rows = await (_db.select(_db.sessions)
           ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
           ..limit(limit))
         .get();
-    return const [];
+    return rows.map(_mapSession).toList();
   }
 
   @override
@@ -66,8 +114,6 @@ class DriftSessionRepository implements SessionRepository {
 
   @override
   Stream<SmartResumeData?> watchSmartResume() {
-    // Watch active entries joined with active sections & pieces,
-    // then select the section with the latest lastPracticedAt and its latest entry.
     final query = _db.select(_db.entries).join([
       innerJoin(
         _db.sections,
@@ -88,7 +134,6 @@ class DriftSessionRepository implements SessionRepository {
 
     return query.watch().map((rows) {
       if (rows.isEmpty) return null;
-      // Pick rows whose section has a non-null lastPracticedAt if available.
       final withPracticedAt = rows.where(
         (r) => r.readTable(_db.sections).lastPracticedAt != null,
       );
@@ -103,46 +148,115 @@ class DriftSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<void> recordQuickEntry({
+  Future<Session> startSession() async {
+    final now = _clock.nowUtc();
+    final today = _clock.todayLocalDate();
+    final id = _idGenerator.nextId();
+
+    await _db.into(_db.sessions).insert(
+          db.SessionsCompanion.insert(
+            id: id,
+            startedAt: Value(now),
+            date: today,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    return Session(
+      id: id,
+      startedAt: now,
+      date: today,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  @override
+  Future<void> endSession({
+    required String sessionId,
+    required int durationMinutes,
+    String? note,
+  }) async {
+    final now = _clock.nowUtc();
+    final trimmed = note?.trim();
+    final cleanedNote =
+        (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+
+    await (_db.update(_db.sessions)
+          ..where((t) => t.id.equals(sessionId) & t.deletedAt.isNull()))
+        .write(
+      db.SessionsCompanion(
+        durationMinutes: Value(durationMinutes),
+        note: Value(cleanedNote),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  @override
+  Future<LogEntryDefaults> getDefaultsForSection(Section section) async {
+    final lastRow = await (_db.select(_db.entries)
+          ..where(
+            (t) => t.sectionId.equals(section.id) & t.deletedAt.isNull(),
+          )
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+
+    final lastEntry = lastRow == null ? null : _mapEntry(lastRow);
+    final hands = (lastEntry != null && lastEntry.hands.isNotEmpty)
+        ? lastEntry.hands
+        : const ['ht'];
+
+    return LogEntryDefaults(
+      hands: hands,
+      lastTempo: lastEntry?.tempo,
+      outcome: PracticeOutcome.same,
+      rh: section.rhStatus,
+      lh: section.lhStatus,
+      ht: section.htStatus,
+      nextAction: section.nextAction,
+    );
+  }
+
+  @override
+  Future<Entry> saveEntry({
+    required String sessionId,
     required Section section,
+    String? planItemId,
+    required List<String> hands,
     int? tempo,
     required PracticeOutcome outcome,
     String? note,
     String? nextAction,
+    required HandStatus rhAfter,
+    required HandStatus lhAfter,
+    required HandStatus htAfter,
   }) async {
     final now = _clock.nowUtc();
-    final today = _clock.todayLocalDate();
-    final sessionId = _idGenerator.nextId();
-    final entryId = _idGenerator.nextId();
+    final id = _idGenerator.nextId();
+    final cleanedNote = _trimOrNull(note);
+    final cleanedNext = _trimOrNull(nextAction);
 
     await _db.transaction(() async {
-      await _db.into(_db.sessions).insert(
-            db.SessionsCompanion.insert(
-              id: sessionId,
-              startedAt: Value(now),
-              date: today,
-              durationMinutes: const Value(15),
-              createdAt: now,
-              updatedAt: now,
-            ),
-          );
-
       await _db.into(_db.entries).insert(
             db.EntriesCompanion.insert(
-              id: entryId,
+              id: id,
               sessionId: sessionId,
               sectionId: section.id,
-              hands: Value(jsonEncode(['ht'])),
+              planItemId: Value(planItemId),
+              hands: Value(jsonEncode(hands)),
               tempo: Value(tempo),
               outcome: outcome.name,
-              note: Value(note),
-              nextAction: Value(nextAction),
+              note: Value(cleanedNote),
+              nextAction: Value(cleanedNext),
               rhBefore: section.rhStatus.value,
               lhBefore: section.lhStatus.value,
               htBefore: section.htStatus.value,
-              rhAfter: section.rhStatus.value,
-              lhAfter: section.lhStatus.value,
-              htAfter: section.htStatus.value,
+              rhAfter: rhAfter.value,
+              lhAfter: lhAfter.value,
+              htAfter: htAfter.value,
               createdAt: now,
               updatedAt: now,
             ),
@@ -152,12 +266,90 @@ class DriftSessionRepository implements SessionRepository {
             ..where((t) => t.id.equals(section.id) & t.deletedAt.isNull()))
           .write(
         db.SectionsCompanion(
-          nextAction: Value(nextAction ?? section.nextAction),
+          rhStatus: Value(rhAfter.value),
+          lhStatus: Value(lhAfter.value),
+          htStatus: Value(htAfter.value),
+          nextAction: Value(cleanedNext),
           lastPracticedAt: Value(now),
           updatedAt: Value(now),
         ),
       );
+
+      if (planItemId != null) {
+        await (_db.update(_db.planItems)
+              ..where((t) => t.id.equals(planItemId) & t.deletedAt.isNull()))
+            .write(
+          db.PlanItemsCompanion(
+            state: Value(PlanItemState.done.name),
+            updatedAt: Value(now),
+          ),
+        );
+      }
     });
+
+    return Entry(
+      id: id,
+      sessionId: sessionId,
+      sectionId: section.id,
+      planItemId: planItemId,
+      hands: hands,
+      tempo: tempo,
+      outcome: outcome,
+      note: cleanedNote,
+      nextAction: cleanedNext,
+      rhBefore: section.rhStatus,
+      lhBefore: section.lhStatus,
+      htBefore: section.htStatus,
+      rhAfter: rhAfter,
+      lhAfter: lhAfter,
+      htAfter: htAfter,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  @override
+  Future<void> recordQuickEntry({
+    required Section section,
+    int? tempo,
+    required PracticeOutcome outcome,
+    String? note,
+    String? nextAction,
+  }) async {
+    final session = await startSession();
+    await saveEntry(
+      sessionId: session.id,
+      section: section,
+      hands: const ['ht'],
+      tempo: tempo,
+      outcome: outcome,
+      note: note,
+      nextAction: nextAction ?? section.nextAction,
+      rhAfter: section.rhStatus,
+      lhAfter: section.lhStatus,
+      htAfter: section.htStatus,
+    );
+    await endSession(sessionId: session.id, durationMinutes: 15);
+  }
+
+  String? _trimOrNull(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
+  }
+
+  Session _mapSession(db.Session row) {
+    return Session(
+      id: row.id,
+      userId: row.userId,
+      startedAt: row.startedAt?.toUtc(),
+      date: row.date,
+      durationMinutes: row.durationMinutes,
+      note: row.note,
+      createdAt: row.createdAt.toUtc(),
+      updatedAt: row.updatedAt.toUtc(),
+      deletedAt: row.deletedAt?.toUtc(),
+    );
   }
 
   Entry _mapEntry(db.Entry row) {
