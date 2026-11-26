@@ -20,6 +20,9 @@ class _FakeClock implements AppClock {
 
   @override
   String todayLocalDate() => '2026-11-26';
+
+  @override
+  String yesterdayLocalDate() => '2026-11-25';
 }
 
 final _uuidV4Regex = RegExp(

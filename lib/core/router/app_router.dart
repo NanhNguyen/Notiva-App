@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/models/piece.dart';
 import '../../features/dev/dev_gallery_screen.dart';
+import '../../features/home/screens/home_screen.dart';
+import '../../features/home/screens/plan_screen.dart';
 import '../../features/repertoire/screens/piece_form_screen.dart';
 import '../../features/repertoire/screens/repertoire_screen.dart';
 import '../../features/sections/screens/piece_detail_screen.dart';
@@ -47,11 +49,7 @@ final GoRouter appRouter = GoRouter(
           routes: [
             GoRoute(
               path: AppRoutes.today,
-              builder: (context, state) => const PlaceholderTabScreen(
-                title: AppStrings.todayTitle,
-                emptyTitle: AppStrings.todayEmptyTitle,
-                emptySubtitle: AppStrings.todayEmptySubtitle,
-              ),
+              builder: (context, state) => const HomeScreen(),
             ),
           ],
         ),
@@ -122,9 +120,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: AppRoutes.planForm,
-      builder: (context, state) => const PlaceholderRouteScreen(
-        title: AppStrings.planFormTitle,
-      ),
+      builder: (context, state) => const PlanScreen(),
     ),
     if (kDebugMode)
       GoRoute(

@@ -12,6 +12,7 @@ import 'data/repositories/piece_repository.dart';
 import 'data/repositories/plan_repository.dart';
 import 'data/repositories/section_repository.dart';
 import 'data/repositories/session_repository.dart';
+import 'features/home/cubit/plan_cubit.dart';
 import 'features/repertoire/cubit/pieces_cubit.dart';
 import 'features/sections/cubit/sections_cubit.dart';
 
@@ -84,6 +85,13 @@ class NotivaApp extends StatelessWidget {
       ],
       child: MultiBlocProvider(
         providers: [
+          BlocProvider<PlanCubit>(
+            create: (context) => PlanCubit(
+              pieceRepository: context.read<PieceRepository>(),
+              planRepository: context.read<PlanRepository>(),
+              sessionRepository: context.read<SessionRepository>(),
+            ),
+          ),
           BlocProvider<PiecesCubit>(
             create: (context) => PiecesCubit(context.read<PieceRepository>()),
           ),

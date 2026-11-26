@@ -27,3 +27,27 @@ String formatLastPracticedLabel(DateTime? lastPracticedAt, {DateTime? now}) {
   return 'Tập gần nhất: $d/$m/${local.year}';
 }
 
+/// Formats a local [DateTime] into e.g. "Thứ năm, 26 tháng 11".
+String formatHeaderDate([DateTime? now]) {
+  final local = (now ?? DateTime.now()).toLocal();
+  const weekdays = [
+    'Thứ hai',
+    'Thứ ba',
+    'Thứ tư',
+    'Thứ năm',
+    'Thứ sáu',
+    'Thứ bảy',
+    'Chủ nhật',
+  ];
+  final weekday = weekdays[local.weekday - 1];
+  return '$weekday, ${local.day} tháng ${local.month}';
+}
+
+/// Returns calm Vietnamese greeting by time of day.
+String greetingForTime([DateTime? now]) {
+  final hour = (now ?? DateTime.now()).toLocal().hour;
+  if (hour >= 5 && hour < 12) return 'Chào buổi sáng';
+  if (hour >= 12 && hour < 18) return 'Chào buổi chiều';
+  return 'Chào buổi tối';
+}
+

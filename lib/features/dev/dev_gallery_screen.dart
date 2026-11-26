@@ -6,6 +6,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/repositories/piece_repository.dart';
 import '../../data/repositories/section_repository.dart';
+import '../../data/repositories/session_repository.dart';
 import '../../domain/enums/hand_status.dart';
 import '../../domain/enums/piece_status.dart';
 import '../../domain/enums/practice_outcome.dart';
@@ -58,6 +59,12 @@ class _DevGalleryScreenState extends State<DevGalleryScreen> {
               label: 'Seed sample data',
               expand: true,
               onPressed: _seedSampleData,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TonalButton(
+              label: 'Seed sample entry (Smart Resume)',
+              expand: true,
+              onPressed: _seedSampleEntry,
             ),
             const SizedBox(height: AppSpacing.xl),
             _sectionTitle('1. PieceKeysBar (28dp & compact 20dp)'),
@@ -325,6 +332,43 @@ class _DevGalleryScreenState extends State<DevGalleryScreen> {
 
     if (mounted) {
       showAppToast(context, message: 'Đã thêm 4 bản nhạc mẫu.');
+    }
+  }
+
+  Future<void> _seedSampleEntry() async {
+    final pieceRepo = context.read<PieceRepository>();
+    final sessionRepo = context.read<SessionRepository>();
+    final pieces = await pieceRepo.watchAllWithSections().first;
+    final withSections = pieces.where((p) => p.sections.isNotEmpty).toList();
+
+    if (withSections.isEmpty) {
+      if (mounted) {
+        showAppToast(
+          context,
+          message: 'Hãy bấm "Seed sample data" trước.',
+          isError: true,
+        );
+      }
+      return;
+    }
+
+    final targetSection = withSections.first.sections.length > 1
+        ? withSections.first.sections[1]
+        : withSections.first.sections.first;
+
+    await sessionRepo.recordQuickEntry(
+      section: targetSection,
+      tempo: 60,
+      outcome: PracticeOutcome.improved,
+      note: 'Tay trái còn chưa đều ở ô nhịp 12.',
+      nextAction: 'Tập chậm tay trái, 60 bpm',
+    );
+
+    if (mounted) {
+      showAppToast(
+        context,
+        message: 'Đã thêm buổi tập mẫu cho "${targetSection.name}".',
+      );
     }
   }
 }
