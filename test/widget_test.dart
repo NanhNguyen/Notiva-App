@@ -38,7 +38,11 @@ void main() {
 
     await tester.tap(find.text(AppStrings.navProgress));
     await tester.pump();
-    expect(find.text(AppStrings.progressEmptyTitle), findsOneWidget);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump();
+    expect(find.text('Tuần này'), findsOneWidget);
 
     // Unmount widget tree, flush Drift's cleanup timer, and close DB in real async zone.
     await tester.pumpWidget(const SizedBox.shrink());

@@ -14,6 +14,7 @@ import 'data/repositories/section_repository.dart';
 import 'data/repositories/session_repository.dart';
 import 'features/home/cubit/plan_cubit.dart';
 import 'features/practice/cubit/session_cubit.dart';
+import 'features/progress/cubit/progress_cubit.dart';
 import 'features/repertoire/cubit/pieces_cubit.dart';
 import 'features/sections/cubit/sections_cubit.dart';
 
@@ -110,6 +111,12 @@ class NotivaApp extends StatelessWidget {
               sectionRepository: context.read<SectionRepository>(),
               pieceRepository: context.read<PieceRepository>(),
               clock: clock,
+            ),
+          ),
+          BlocProvider<ProgressCubit>(
+            create: (context) => ProgressCubit(
+              sessionRepository: context.read<SessionRepository>(),
+              pieceRepository: context.read<PieceRepository>(),
             ),
           ),
         ],

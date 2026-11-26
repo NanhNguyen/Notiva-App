@@ -9,14 +9,13 @@ import '../../features/home/screens/plan_screen.dart';
 import '../../features/practice/cubit/session_state.dart';
 import '../../features/practice/screens/log_result_screen.dart';
 import '../../features/practice/screens/practice_screen.dart';
+import '../../features/progress/screens/progress_screen.dart';
 import '../../features/repertoire/screens/piece_form_screen.dart';
 import '../../features/repertoire/screens/repertoire_screen.dart';
 import '../../features/sections/screens/piece_detail_screen.dart';
 import '../../features/sections/screens/section_detail_screen.dart';
 import '../../features/sections/screens/section_form_screen.dart';
 import '../../features/shell/app_shell.dart';
-import '../../features/shell/placeholder_tab_screen.dart';
-import '../strings/app_strings.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -67,11 +66,7 @@ final GoRouter appRouter = GoRouter(
           routes: [
             GoRoute(
               path: AppRoutes.progress,
-              builder: (context, state) => const PlaceholderTabScreen(
-                title: AppStrings.progressTitle,
-                emptyTitle: AppStrings.progressEmptyTitle,
-                emptySubtitle: AppStrings.progressEmptySubtitle,
-              ),
+              builder: (context, state) => const ProgressScreen(),
             ),
           ],
         ),

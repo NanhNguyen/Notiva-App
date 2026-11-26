@@ -8,6 +8,7 @@ import '../../domain/enums/plan_item_state.dart';
 import '../../domain/enums/practice_outcome.dart';
 import '../../domain/models/entry.dart';
 import '../../domain/models/piece.dart';
+import '../../domain/models/progress_models.dart';
 import '../../domain/models/section.dart';
 import '../../domain/models/session.dart';
 import '../../domain/models/smart_resume_data.dart';
@@ -43,6 +44,10 @@ abstract interface class SessionRepository {
   Stream<List<Entry>> watchEntriesForSection(String sectionId);
 
   Stream<SmartResumeData?> watchSmartResume();
+
+  Stream<ProgressSnapshot> watchProgressSnapshot();
+
+  Stream<List<TempoDataPoint>> watchTempoSeries(String sectionId);
 
   Future<Session> startSession();
 
@@ -143,6 +148,115 @@ class DriftSessionRepository implements SessionRepository {
         section: _mapSection(chosen.readTable(_db.sections)),
         piece: _mapPiece(chosen.readTable(_db.pieces)),
         latestEntry: _mapEntry(chosen.readTable(_db.entries)),
+      );
+    });
+  }
+
+  @override
+  Stream<List<TempoDataPoint>> watchTempoSeries(String sectionId) {
+    return (_db.select(_db.entries)
+          ..where(
+            (t) =>
+                t.sectionId.equals(sectionId) &
+                t.tempo.isNotNull() &
+                t.deletedAt.isNull(),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .watch()
+        .map(
+          (rows) => rows
+              .map(
+                (r) => TempoDataPoint(
+                  date: r.createdAt.toUtc(),
+                  tempo: r.tempo!,
+                ),
+              )
+              .toList(),
+        );
+  }
+
+  @override
+  Stream<ProgressSnapshot> watchProgressSnapshot() {
+    final sessionsQuery = _db.select(_db.sessions)
+      ..where((t) => t.deletedAt.isNull())
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.date),
+        (t) => OrderingTerm.desc(t.createdAt),
+      ]);
+
+    return sessionsQuery.watch().asyncMap((sessionRows) async {
+      final entryRows = await (_db.select(_db.entries).join([
+        innerJoin(
+          _db.sections,
+          _db.sections.id.equalsExp(_db.entries.sectionId) &
+              _db.sections.deletedAt.isNull(),
+        ),
+        innerJoin(
+          _db.pieces,
+          _db.pieces.id.equalsExp(_db.sections.pieceId) &
+              _db.pieces.deletedAt.isNull(),
+        ),
+      ])
+            ..where(_db.entries.deletedAt.isNull())
+            ..orderBy([OrderingTerm.desc(_db.entries.createdAt)]))
+          .get();
+
+      final entriesBySession = <String, List<SessionEntryView>>{};
+      final statusChanges = <StatusChangeItem>[];
+
+      for (final row in entryRows) {
+        final entry = _mapEntry(row.readTable(_db.entries));
+        final section = _mapSection(row.readTable(_db.sections));
+        final piece = _mapPiece(row.readTable(_db.pieces));
+
+        entriesBySession
+            .putIfAbsent(entry.sessionId, () => [])
+            .add(SessionEntryView(entry: entry, section: section, piece: piece));
+
+        final changed = entry.rhBefore != entry.rhAfter ||
+            entry.lhBefore != entry.lhAfter ||
+            entry.htBefore != entry.htAfter;
+        if (changed && statusChanges.length < 10) {
+          statusChanges.add(
+            StatusChangeItem(entry: entry, section: section, piece: piece),
+          );
+        }
+      }
+
+      // Compute "Tuần này" (Monday..Sunday in local calendar dates).
+      final todayStr = _clock.todayLocalDate();
+      final todayDate = DateTime.parse(todayStr);
+      final monday = todayDate.subtract(Duration(days: todayDate.weekday - 1));
+      final sunday = monday.add(const Duration(days: 6));
+
+      var weekSessions = 0;
+      var weekMinutes = 0;
+      final history = <SessionHistoryGroup>[];
+
+      for (final sRow in sessionRows) {
+        final session = _mapSession(sRow);
+        final sessionDate = DateTime.tryParse(session.date);
+        if (sessionDate != null &&
+            !sessionDate.isBefore(monday) &&
+            !sessionDate.isAfter(sunday)) {
+          weekSessions++;
+          weekMinutes += session.durationMinutes ?? 0;
+        }
+        history.add(
+          SessionHistoryGroup(
+            session: session,
+            entries: entriesBySession[session.id] ?? const [],
+          ),
+        );
+      }
+
+      return ProgressSnapshot(
+        thisWeek: WeeklySummary(
+          sessionCount: weekSessions,
+          totalMinutes: weekMinutes,
+        ),
+        recentStatusChanges: statusChanges,
+        sessionHistory: history,
       );
     });
   }
