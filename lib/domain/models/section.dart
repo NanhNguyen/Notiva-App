@@ -43,5 +43,55 @@ class Section {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
+
+  Section copyWith({
+    String? id,
+    String? userId,
+    String? pieceId,
+    String? name,
+    int? orderIndex,
+    String? pageRef,
+    bool clearPageRef = false,
+    int? measureStart,
+    bool clearMeasureStart = false,
+    int? measureEnd,
+    bool clearMeasureEnd = false,
+    List<String>? difficultyTags,
+    String? note,
+    bool clearNote = false,
+    List<String>? links,
+    HandStatus? rhStatus,
+    HandStatus? lhStatus,
+    HandStatus? htStatus,
+    String? nextAction,
+    bool clearNextAction = false,
+    DateTime? lastPracticedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+  }) {
+    return Section(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      pieceId: pieceId ?? this.pieceId,
+      name: name ?? this.name,
+      orderIndex: orderIndex ?? this.orderIndex,
+      pageRef: clearPageRef ? null : (pageRef ?? this.pageRef),
+      measureStart:
+          clearMeasureStart ? null : (measureStart ?? this.measureStart),
+      measureEnd: clearMeasureEnd ? null : (measureEnd ?? this.measureEnd),
+      difficultyTags: difficultyTags ?? this.difficultyTags,
+      note: clearNote ? null : (note ?? this.note),
+      links: links ?? this.links,
+      rhStatus: rhStatus ?? this.rhStatus,
+      lhStatus: lhStatus ?? this.lhStatus,
+      htStatus: htStatus ?? this.htStatus,
+      nextAction: clearNextAction ? null : (nextAction ?? this.nextAction),
+      lastPracticedAt: lastPracticedAt ?? this.lastPracticedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
 }
 

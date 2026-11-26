@@ -26,11 +26,15 @@ abstract interface class PieceRepository {
 
   Future<Piece?> getById(String id);
 
+  Stream<Piece?> watchById(String id);
+
   Future<List<Piece>> getAll();
 
   Stream<List<Piece>> watchAll();
 
   Stream<List<PieceWithSections>> watchAllWithSections();
+
+  Stream<int> watchSessionCountForPiece(String pieceId);
 }
 
 /// Drift-backed implementation of [PieceRepository].
@@ -160,6 +164,35 @@ class DriftPieceRepository implements PieceRepository {
           ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
         .getSingleOrNull();
     return row == null ? null : _mapRow(row);
+  }
+
+  @override
+  Stream<Piece?> watchById(String id) {
+    return (_db.select(_db.pieces)
+          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
+        .watchSingleOrNull()
+        .map((row) => row == null ? null : _mapRow(row));
+  }
+
+  @override
+  Stream<int> watchSessionCountForPiece(String pieceId) {
+    final query = _db.select(_db.entries).join([
+      innerJoin(
+        _db.sections,
+        _db.sections.id.equalsExp(_db.entries.sectionId) &
+            _db.sections.pieceId.equals(pieceId) &
+            _db.sections.deletedAt.isNull(),
+      ),
+    ])
+      ..where(_db.entries.deletedAt.isNull());
+
+    return query.watch().map((rows) {
+      final sessionIds = <String>{};
+      for (final row in rows) {
+        sessionIds.add(row.readTable(_db.entries).sessionId);
+      }
+      return sessionIds.length;
+    });
   }
 
   @override

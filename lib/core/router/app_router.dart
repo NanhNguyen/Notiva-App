@@ -6,6 +6,9 @@ import '../../domain/models/piece.dart';
 import '../../features/dev/dev_gallery_screen.dart';
 import '../../features/repertoire/screens/piece_form_screen.dart';
 import '../../features/repertoire/screens/repertoire_screen.dart';
+import '../../features/sections/screens/piece_detail_screen.dart';
+import '../../features/sections/screens/section_detail_screen.dart';
+import '../../features/sections/screens/section_form_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/shell/placeholder_route_screen.dart';
 import '../../features/shell/placeholder_tab_screen.dart';
@@ -23,7 +26,9 @@ abstract final class AppRoutes {
   // Outside-shell routes (bottom navigation hidden)
   static const String practiceSession = '/practice/session';
   static const String practiceLog = '/practice/log';
+  static const String pieceDetail = '/piece';
   static const String pieceForm = '/piece/form';
+  static const String sectionDetail = '/section';
   static const String sectionForm = '/section/form';
   static const String planForm = '/plan/form';
   static const String devGallery = '/dev/gallery';
@@ -95,9 +100,23 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
+      path: '${AppRoutes.pieceDetail}/:id',
+      builder: (context, state) => PieceDetailScreen(
+        pieceId: state.pathParameters['id']!,
+      ),
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
       path: AppRoutes.sectionForm,
-      builder: (context, state) => const PlaceholderRouteScreen(
-        title: AppStrings.sectionFormTitle,
+      builder: (context, state) => SectionFormScreen(
+        args: state.extra as SectionFormArgs,
+      ),
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '${AppRoutes.sectionDetail}/:id',
+      builder: (context, state) => SectionDetailScreen(
+        sectionId: state.pathParameters['id']!,
       ),
     ),
     GoRoute(

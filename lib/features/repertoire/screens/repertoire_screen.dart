@@ -120,8 +120,7 @@ class _RepertoireScreenState extends State<RepertoireScreen> {
                                 return _PieceCard(
                                   item: item,
                                   onTap: () => context.push(
-                                    AppRoutes.pieceForm,
-                                    extra: item.piece,
+                                    '${AppRoutes.pieceDetail}/${item.piece.id}',
                                   ),
                                 );
                               },
