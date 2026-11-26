@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/dev/dev_gallery_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/shell/placeholder_route_screen.dart';
 import '../../features/shell/placeholder_tab_screen.dart';
@@ -21,6 +23,7 @@ abstract final class AppRoutes {
   static const String pieceForm = '/piece/form';
   static const String sectionForm = '/section/form';
   static const String planForm = '/plan/form';
+  static const String devGallery = '/dev/gallery';
 }
 
 final GoRouter appRouter = GoRouter(
@@ -105,6 +108,12 @@ final GoRouter appRouter = GoRouter(
         title: AppStrings.planFormTitle,
       ),
     ),
+    if (kDebugMode)
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: AppRoutes.devGallery,
+        builder: (context, state) => const DevGalleryScreen(),
+      ),
   ],
 );
 

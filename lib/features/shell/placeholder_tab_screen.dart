@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -53,6 +56,13 @@ class PlaceholderTabScreen extends StatelessWidget {
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        if (kDebugMode) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          OutlinedButton(
+                            onPressed: () => context.push(AppRoutes.devGallery),
+                            child: const Text('Mở UI Gallery'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
